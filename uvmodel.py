@@ -7,6 +7,7 @@ routine to generate a vector plot from user-specified time and place
 reads a control file for imput parameters
 
 modified in Dec 2015 to test on both eMOLT and COMET machine
+revisited in Dec 2018 to overlay on drifter tracks in CC Bay
 """
 
 from pylab import *
@@ -19,11 +20,15 @@ import sys
 import numpy as np
 from datetime import timedelta
 #from pydap.client import open_url
-lon_bin_size=2.0
-lat_bin_size=2.0
+#lon_bin_size=2.0
+#lat_bin_size=2.0
+# read HARDCODES listed in control file ######################
 urlname=open("ctrl_uvmodel.csv", "r").readlines()[0][27:-1]
 depth=int(open("ctrl_uvmodel.csv", "r").readlines()[1][22:-1])
 TIME=open("ctrl_uvmodel.csv", "r").readlines()[2][31:-1]
+lon_bin_size=float(open("ctrl_uvmodel.csv", "r").readlines()[3][32:-1])
+lat_bin_size=float(open("ctrl_uvmodel.csv", "r").readlines()[4][32:-1])
+##############################################################
 def sh_bindata(x, y, z, xbins, ybins):
     ix=np.digitize(x,xbins)
     iy=np.digitize(y,ybins)
@@ -70,15 +75,21 @@ u= nc.variables['u']
 v= nc.variables['v']
 nv = nc.variables['nv'][:].T - 1
 print 'we have the model data now we want to get depth of interest'
+print 'where we might be able to speed this up with, for example, utotal=u[startrecord,0,:] for the case of surface?'
 utotal=[]
 vtotal=[]
-for i in range(len(lon)):
+if depth==-1: # case of surface flow
+  utotal=u[startrecord,0,:]
+  vtotal=v[startrecord,0,:]
+else:
+  for i in range(len(lon)):
     depthtotal=siglay[:,i]*h[i]
     layer=np.argmin(abs(depthtotal+depth))
     utotal.append(u[startrecord,layer,i])
     vtotal.append(v[startrecord,layer,i])
-utotal=np.array(utotal)
-vtotal=np.array(vtotal)
+  utotal=np.array(utotal)
+  vtotal=np.array(vtotal)
+
 print 'now lets bin the data'
 xi = np.arange(min(lon)-0.1,max(lon)+0.1,lon_bin_size)
 yi = np.arange(min(lat)-0.1,max(lat)+0.1,lat_bin_size)
